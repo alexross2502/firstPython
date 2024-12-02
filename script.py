@@ -6,6 +6,8 @@ import requests
 import os
 from dotenv import load_dotenv
 import urllib3
+from auth.basic_auth import login_with_basic_auth
+from auth.form_auth import login_with_form_auth
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -40,7 +42,7 @@ class SitemapGenerator:
 
     def is_valid_url(self, url):
         parsed = urlparse(url)
-        if any(exclude in url for exclude in ["/assets", "/_profiler", "/uploads", "/independent-female-escorts", "cdn-cgi", "page", "categories", "my-advertisement-delete"]) or parsed.fragment:
+        if any(exclude in url for exclude in ["/assets", "/_profiler", "/uploads", "/independent-female-escorts", "cdn-cgi", "page", "my-advertisement-delete"]) or parsed.fragment:
             return False
         return parsed.netloc == urlparse(self.base_url).netloc and url not in self.visited
 
@@ -66,78 +68,22 @@ class SitemapGenerator:
         tree.write(output_filename, encoding="utf-8", xml_declaration=True)
         print(f"Карта сайта сгенерирована: {output_filename}")
 
-    def run(self, output_filename, additional_url=None):
-        if additional_url:
-            self.visited.add(additional_url)
-            self.crawl(additional_url)
+    def run(self, output_filename, additional_urls=None):
+        if additional_urls:
+            for url in additional_urls:
+                self.visited.add(url)
+                self.crawl(url)
         self.crawl(self.base_url)
         self.generate_sitemap(output_filename)
 
-def login_with_basic_auth(base_url, basic_auth_user, basic_auth_pass):
-    session = requests.Session()
-    session.auth = (basic_auth_user, basic_auth_pass)
-    response = session.get(base_url, timeout=5, verify=False)
-    if response.status_code == 200:
-        print(f"Успешная авторизация через Basic Auth на сайте: {base_url}")
-        return session
-    else:
-        print(f"Не удалось выполнить авторизацию через Basic Auth на сайте: {base_url}")
-        return None
-
-def login_with_form_auth(login_url, session, form_username, form_password, site_type, base_url):
-    login_page = session.get(login_url, timeout=5, verify=False)
-    soup = BeautifulSoup(login_page.text, 'html.parser')
-    
-    csrf_token = None
-    login_data = {}
-    submit_url = login_url 
-
-    if site_type == "original":
-        csrf_token = soup.find("input", {"name": "_token"})
-        if csrf_token:
-            csrf_token = csrf_token["value"]
-            login_data = {
-                '_token': csrf_token,
-                'terms[email]': form_username,
-                'terms[password]': form_password,
-                'remember': 1,
-                'btnLogin': 'LOGIN'
-            }
-            submit_url = base_url + "submitLogin" 
-            
-        else:
-            print(f"CSRF-токен не найден на странице входа ({site_type}): {login_url}")
-            return None
-    elif site_type == "copy":
-        csrf_token = soup.find("input", {"name": "_csrf_token"})
-        if csrf_token:
-            csrf_token = csrf_token["value"]
-            login_data = {
-                '_csrf_token': csrf_token,
-                '_target_path': '/my-account',
-                '_username': form_username,
-                '_password': form_password
-            }
-        else:
-            print(f"CSRF-токен не найден на странице входа ({site_type}): {login_url}")
-            return None
-
-    response = session.post(submit_url, data=login_data, timeout=5, verify=False)
-    if response.status_code == 200:
-        print(f"Успешная авторизация через форму входа на сайте ({site_type}): {submit_url}")
-        return session
-    else:
-        print(f"Не удалось выполнить авторизацию через форму входа на сайте ({site_type}): {submit_url}, код состояния {response.status_code}")
-        return None
-
-def generate_sitemap_for_site(base_url, login_url_suffix, basic_auth_user, basic_auth_pass, form_username, form_password, output_filename, site_type, additional_url=None):
+def generate_sitemap_for_site(base_url, login_url_suffix, basic_auth_user, basic_auth_pass, form_username, form_password, output_filename, site_type, additional_urls=None):
     session = login_with_basic_auth(base_url, basic_auth_user, basic_auth_pass)
     if session:
         login_url = base_url + login_url_suffix
         session = login_with_form_auth(login_url, session, form_username, form_password, site_type, base_url)
         if session:
             generator = SitemapGenerator(base_url, session)
-            generator.run(output_filename, additional_url=additional_url)
+            generator.run(output_filename, additional_urls=additional_urls)
         else:
             print(f"Не удалось выполнить авторизацию через форму входа на сайте ({site_type})")
     else:
@@ -152,7 +98,7 @@ if __name__ == "__main__":
     base_url_original = os.getenv("BASE_URL_ORIGINAL")
     output_filename1 = "sitemap_original.xml"
     site_type_original = "original"
-    additional_url_original = "https://www.pvssy.com/all-country?type=Female%20Strippers"
+    additional_urls_original = os.getenv("ADDITIONAL_URLS_ORIGINAL").split(',')
 
     base_url_copy = os.getenv("BASE_URL_COPY")
     output_filename2 = "sitemap_copy.xml"
@@ -160,6 +106,5 @@ if __name__ == "__main__":
 
     login_url_suffix = "login"
 
-    generate_sitemap_for_site(base_url_original, login_url_suffix, basic_auth_user, basic_auth_pass, form_username, form_password, output_filename1, site_type_original, additional_url=additional_url_original)
-
+    generate_sitemap_for_site(base_url_original, login_url_suffix, basic_auth_user, basic_auth_pass, form_username, form_password, output_filename1, site_type_original, additional_urls=additional_urls_original)
     generate_sitemap_for_site(base_url_copy, login_url_suffix, basic_auth_user, basic_auth_pass, form_username, form_password, output_filename2, site_type_copy)

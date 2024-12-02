@@ -5,6 +5,8 @@ import logging
 from lxml import html
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from auth.basic_auth import login_with_basic_auth
+from auth.form_auth import login_with_form_auth
 
 load_dotenv()
 
@@ -29,6 +31,7 @@ def clean_string(value):
 def extract_data(session, url):
     response = session.get(url)
     tree = html.fromstring(response.content)
+    soup = BeautifulSoup(response.content, 'html.parser')
 
     title = tree.xpath('string(//title)')
     description = tree.xpath('string(//meta[@name="description"]/@content)')
@@ -36,13 +39,32 @@ def extract_data(session, url):
     h1 = tree.xpath('string(//h1[contains(@class, "text-center")])')
     article = tree.xpath('string((//div[@class="hArticle"])[last()])')
 
+    meta_robots = tree.xpath('string(//meta[@name="robots"]/@content)')
+    meta_charset = tree.xpath('string(//meta[@charset]/@charset)')
+    h2 = tree.xpath('string(//h2)')
+    h3 = tree.xpath('string(//h3)')
+    canonical = tree.xpath('string(//link[@rel="canonical"]/@href)')
+    og_title = tree.xpath('string(//meta[@property="og:title"]/@content)')
+    og_description = tree.xpath('string(//meta[@property="og:description"]/@content)')
+    twitter_card = tree.xpath('string(//meta[@name="twitter:card"]/@content)')
+    structured_data = soup.find('script', type='application/ld+json')
+
     data = {
         "url": url,
         "title": clean_string(title),
         "description": clean_string(description),
         "keywords": clean_string(keywords),
         "h1": clean_string(h1),
-        "article": clean_string(article)
+        "article": clean_string(article),
+        "meta_robots": clean_string(meta_robots),
+        "meta_charset": clean_string(meta_charset),
+        "h2": clean_string(h2),
+        "h3": clean_string(h3),
+        "canonical": clean_string(canonical),
+        "og_title": clean_string(og_title),
+        "og_description": clean_string(og_description),
+        "twitter_card": clean_string(twitter_card),
+        "structured_data": clean_string(structured_data.string if structured_data else "")
     }
     return data
 
@@ -52,63 +74,6 @@ def compare_data(data1, data2):
         if data1[key] != data2[key]:
             differences[key] = {"original": data1[key], "copy": data2[key]}
     return differences
-
-def login_with_basic_auth(base_url, basic_auth_user, basic_auth_pass):
-    session = requests.Session()
-    session.auth = (basic_auth_user, basic_auth_pass)
-    response = session.get(base_url, timeout=5, verify=False)
-    if response.status_code == 200:
-        logging.info(f"Успешная авторизация через Basic Auth на сайте: {base_url}")
-        return session
-    else:
-        logging.error(f"Не удалось выполнить авторизацию через Basic Auth на сайте: {base_url}")
-        return None
-
-def login_with_form_auth(login_url, session, form_username, form_password, site_type, base_url):
-    login_page = session.get(login_url, timeout=5, verify=False)
-    soup = BeautifulSoup(login_page.text, 'html.parser')
-    
-    csrf_token = None
-    login_data = {}
-    submit_url = login_url 
-
-    if site_type == "original":
-        csrf_token = soup.find("input", {"name": "_token"})
-        if csrf_token:
-            csrf_token = csrf_token["value"]
-            login_data = {
-                '_token': csrf_token,
-                'terms[email]': form_username,
-                'terms[password]': form_password,
-                'remember': 1,
-                'btnLogin': 'LOGIN'
-            }
-            submit_url = base_url + "submitLogin" 
-            
-        else:
-            logging.error("CSRF-токен не найден на странице входа (%s): %s", site_type, login_url)
-            return None
-    elif site_type == "copy":
-        csrf_token = soup.find("input", {"name": "_csrf_token"})
-        if csrf_token:
-            csrf_token = csrf_token["value"]
-            login_data = {
-                '_csrf_token': csrf_token,
-                '_target_path': '/my-account',
-                '_username': form_username,
-                '_password': form_password
-            }
-        else:
-            logging.error("CSRF-токен не найден на странице входа (%s): %s", site_type, login_url)
-            return None
-
-    response = session.post(submit_url, data=login_data, timeout=5, verify=False)
-    if response.status_code == 200:
-        logging.info("Успешная авторизация через форму входа на сайте (%s): %s", site_type, submit_url)
-        return session
-    else:
-        logging.error("Не удалось выполнить авторизацию через форму входа на сайте (%s): %s, код состояния %d", site_type, submit_url, response.status_code)
-        return None
 
 def main(input_file, output_file):
     result = []
