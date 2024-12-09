@@ -18,10 +18,10 @@ FORM_USERNAME = os.getenv("FORM_USERNAME")
 FORM_PASSWORD = os.getenv("FORM_PASSWORD")
 LOGIN_URL_SUFFIX = os.getenv("LOGIN_URL_SUFFIX", "login")
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelение)s - %(message)s', filename='script.log', filemode='w')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(уровень)s - %(message)s', filename='script.log', filemode='w')
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(levelение)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(уровень)s - %(message)s')
 console.setFormatter(formatter)
 logging.getLogger('').addHandler(console)
 
@@ -41,12 +41,22 @@ def extract_data(session, url):
 
     meta_robots = tree.xpath('string(//meta[@name="robots"]/@content)')
     meta_charset = tree.xpath('string(//meta[@charset]/@charset)')
+    meta_viewport = tree.xpath('string(//meta[@name="viewport"]/@content)')
     h2 = tree.xpath('string(//h2)')
-    h3 = tree.xpath('string(//h3)')
     canonical = tree.xpath('string(//link[@rel="canonical"]/@href)')
     og_title = tree.xpath('string(//meta[@property="og:title"]/@content)')
+    og_type = tree.xpath('string(//meta[@property="og:type"]/@content)')
+    og_url = tree.xpath('string(//meta[@property="og:url"]/@content)')
+    og_image = tree.xpath('string(//meta[@property="og:image"]/@content)')
+    og_site_name = tree.xpath('string(//meta[@property="og:site_name"]/@content)')
     og_description = tree.xpath('string(//meta[@property="og:description"]/@content)')
+    article_author = tree.xpath('string(//meta[@property="article:author"]/@content)')
+    article_publisher = tree.xpath('string(//meta[@property="article:publisher"]/@content)')
+    fb_app_id = tree.xpath('string(//meta[@property="fb:app_id"]/@content)')
     twitter_card = tree.xpath('string(//meta[@name="twitter:card"]/@content)')
+    twitter_site = tree.xpath('string(//meta[@name="twitter:site"]/@content)')
+    twitter_creator = tree.xpath('string(//meta[@name="twitter:creator"]/@content)')
+    twitter_image_src = tree.xpath('string(//meta[@name="twitter:image:src"]/@content)')
     structured_data = soup.find('script', type='application/ld+json')
 
     data = {
@@ -58,12 +68,22 @@ def extract_data(session, url):
         "article": clean_string(article),
         "meta_robots": clean_string(meta_robots),
         "meta_charset": clean_string(meta_charset),
+        "meta_viewport": clean_string(meta_viewport),
         "h2": clean_string(h2),
-        "h3": clean_string(h3),
         "canonical": clean_string(canonical),
         "og_title": clean_string(og_title),
+        "og_type": clean_string(og_type),
+        "og_url": clean_string(og_url),
+        "og_image": clean_string(og_image),
+        "og_site_name": clean_string(og_site_name),
         "og_description": clean_string(og_description),
+        "article_author": clean_string(article_author),
+        "article_publisher": clean_string(article_publisher),
+        "fb_app_id": clean_string(fb_app_id),
         "twitter_card": clean_string(twitter_card),
+        "twitter_site": clean_string(twitter_site),
+        "twitter_creator": clean_string(twitter_creator),
+        "twitter_image_src": clean_string(twitter_image_src),
         "structured_data": clean_string(structured_data.string if structured_data else "")
     }
     return data
