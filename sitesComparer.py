@@ -29,47 +29,35 @@ def clean_string(value):
     return value.replace('\n', ' ').replace('"', '\\"').strip()
 
 def extract_data(session, url):
-    response = session.get(url)
-    tree = html.fromstring(response.content)
+    response = session.get(url, verify=False)
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    title = tree.xpath('string(//title)')
-    description = tree.xpath('string(//meta[@name="description"]/@content)')
-    keywords = tree.xpath('string(//meta[@name="keywords"]/@content)')
-    h1 = tree.xpath('string(//h1[contains(@class, "text-center")])')
-    article = tree.xpath('string((//div[@class="hArticle"])[last()])')
-
-    meta_robots = tree.xpath('string(//meta[@name="robots"]/@content)')
-    meta_charset = tree.xpath('string(//meta[@charset]/@charset)')
-    meta_viewport = tree.xpath('string(//meta[@name="viewport"]/@content)')
-    h2 = tree.xpath('string(//h2)')
-    canonical = tree.xpath('string(//link[@rel="canonical"]/@href)')
-    og_title = tree.xpath('string(//meta[@property="og:title"]/@content)')
-    og_type = tree.xpath('string(//meta[@property="og:type"]/@content)')
-    og_url = tree.xpath('string(//meta[@property="og:url"]/@content)')
-    og_image = tree.xpath('string(//meta[@property="og:image"]/@content)')
-    og_site_name = tree.xpath('string(//meta[@property="og:site_name"]/@content)')
-    og_description = tree.xpath('string(//meta[@property="og:description"]/@content)')
-    article_author = tree.xpath('string(//meta[@property="article:author"]/@content)')
-    article_publisher = tree.xpath('string(//meta[@property="article:publisher"]/@content)')
-    fb_app_id = tree.xpath('string(//meta[@property="fb:app_id"]/@content)')
-    twitter_card = tree.xpath('string(//meta[@name="twitter:card"]/@content)')
-    twitter_site = tree.xpath('string(//meta[@name="twitter:site"]/@content)')
-    twitter_creator = tree.xpath('string(//meta[@name="twitter:creator"]/@content)')
-    twitter_image_src = tree.xpath('string(//meta[@name="twitter:image:src"]/@content)')
-    structured_data = soup.find('script', type='application/ld+json')
+    title = soup.find('title').get_text() if soup.find('title') else ''
+    article = soup.find('article').get_text() if soup.find('article') else ''
+    description = soup.find('meta', {'name': 'description'})['content'] if soup.find('meta', {'name': 'description'}) else ''
+    keywords = soup.find('meta', {'name': 'keywords'})['content'] if soup.find('meta', {'name': 'keywords'}) else ''
+    h1 = soup.find('h1', {'class': 'text-center'}).get_text() if soup.find('h1', {'class': 'text-center'}) else ''
+    h2 = soup.find('h2').get_text() if soup.find('h2') else ''
+    meta_robots = soup.find('meta', {'name': 'robots'})['content'] if soup.find('meta', {'name': 'robots'}) else ''
+    meta_viewport = soup.find('meta', {'name': 'viewport'})['content'] if soup.find('meta', {'name': 'viewport'}) else ''
+    canonical = soup.find('link', {'rel': 'canonical'})['href'] if soup.find('link', {'rel': 'canonical'}) else ''
+    og_title = soup.find('meta', {'property': 'og:title'})['content'] if soup.find('meta', {'property': 'og:title'}) else ''
+    og_type = soup.find('meta', {'property': 'og:type'})['content'] if soup.find('meta', {'property': 'og:type'}) else ''
+    og_url = soup.find('meta', {'property': 'og:url'})['content'] if soup.find('meta', {'property': 'og:url'}) else ''
+    og_image = soup.find('meta', {'property': 'og:image'})['content'] if soup.find('meta', {'property': 'og:image'}) else ''
+    og_site_name = soup.find('meta', {'property': 'og:site_name'})['content'] if soup.find('meta', {'property': 'og:site_name'}) else ''
+    og_description = soup.find('meta', {'property': 'og:description'})['content'] if soup.find('meta', {'property': 'og:description'}) else ''
+    structured_data = soup.find('script', {'type': 'application/ld+json'})
 
     data = {
-        "url": url,
         "title": clean_string(title),
         "description": clean_string(description),
         "keywords": clean_string(keywords),
         "h1": clean_string(h1),
+        "h2": clean_string(h2),
         "article": clean_string(article),
         "meta_robots": clean_string(meta_robots),
-        "meta_charset": clean_string(meta_charset),
         "meta_viewport": clean_string(meta_viewport),
-        "h2": clean_string(h2),
         "canonical": clean_string(canonical),
         "og_title": clean_string(og_title),
         "og_type": clean_string(og_type),
@@ -77,13 +65,6 @@ def extract_data(session, url):
         "og_image": clean_string(og_image),
         "og_site_name": clean_string(og_site_name),
         "og_description": clean_string(og_description),
-        "article_author": clean_string(article_author),
-        "article_publisher": clean_string(article_publisher),
-        "fb_app_id": clean_string(fb_app_id),
-        "twitter_card": clean_string(twitter_card),
-        "twitter_site": clean_string(twitter_site),
-        "twitter_creator": clean_string(twitter_creator),
-        "twitter_image_src": clean_string(twitter_image_src),
         "structured_data": clean_string(structured_data.string if structured_data else "")
     }
     return data
